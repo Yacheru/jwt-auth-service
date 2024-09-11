@@ -1,0 +1,54 @@
+services:
+  jwt-auth-service:
+    user: root
+    container_name: jwt-auth-service
+    ports:
+      - ${API_PORT}:${API_PORT}
+    build:
+      context: ../
+      dockerfile: ./deploy/Dockerfile
+    networks:
+      - jwt-auth-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  postgres:
+    user: root
+    container_name: postgres
+    image: bitnami/postgresql:16
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRESQL_PASSWORD: ${POSTGRESQL_PASSWORD:?error}
+      POSTGRESQL_USERNAME: ${POSTGRESQL_USERNAME:?error}
+      POSTGRESQL_DATABASE: ${POSTGRESQL_DATABASE:?error}
+    volumes:
+      - ./pg-data:/bitnami/postgresql
+    healthcheck:
+      test: [ "CMD-SHELL", "sh -c 'pg_isready -U ${POSTGRESQL_USERNAME} -d ${POSTGRESQL_DATABASE}'" ]
+      interval: 30s
+      timeout: 60s
+      retries: 5
+    networks:
+      - jwt-auth-service
+
+  redis:
+    user: root
+    container_name: redis
+    image: bitnami/redis:7.4.0
+    ports:
+      - 6379:6379
+    environment:
+      REDIS_DATABASE: ${REDIS_DATABASE:?error}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?error}
+    volumes:
+      - ./redis-data:/bitnami/redis/data
+    networks:
+      - jwt-auth-service
+
+networks:
+  jwt-auth-service:
+    driver: bridge
