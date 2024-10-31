@@ -1,19 +1,19 @@
 services:
-  jwt-auth-service:
-    user: root
-    container_name: jwt-auth-service
-    ports:
-      - ${API_PORT}:${API_PORT}
-    build:
-      context: ../
-      dockerfile: ./deploy/Dockerfile
-    networks:
-      - jwt-auth-service
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_started
+#  jwt-auth-service:
+#    user: root
+#    container_name: jwt-auth-service
+#    ports:
+#      - ${API_PORT}:${API_PORT}
+#    build:
+#      context: ../
+#      dockerfile: ./deploy/Dockerfile
+#    networks:
+#      - jwt-auth-service
+#    depends_on:
+#      postgres:
+#        condition: service_healthy
+#      redis:
+#        condition: service_started
 
   postgres:
     user: root

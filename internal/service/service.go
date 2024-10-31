@@ -1,7 +1,8 @@
 package service
 
 import (
-	"github.com/gin-gonic/gin"
+	"context"
+
 	"jwt-auth-service/init/config"
 	"jwt-auth-service/internal/entities"
 	"jwt-auth-service/internal/repository"
@@ -11,12 +12,13 @@ import (
 )
 
 type JWTService interface {
-	SetSession(ctx *gin.Context, ipAddr, userId string) (*entities.Tokens, error)
-	RefreshTokens(ctx *gin.Context, refreshToken, userId, newUserIp string) (*entities.Tokens, error)
+	SetSession(ctx context.Context, ipAddr, userID string) (*entities.Tokens, error)
+	RefreshTokens(ctx context.Context, refreshToken, newUserIp string) (string, error)
 }
 
 type UserService interface {
-	StoreNewUser(ctx *gin.Context, u *entities.User) error
+	RegisterUser(ctx context.Context, u *entities.User) error
+	LoginUser(ctx context.Context, u *entities.UserLogin) (*entities.Tokens, error)
 }
 
 type Service struct {
@@ -24,19 +26,29 @@ type Service struct {
 	UserService
 }
 
-func NewService(repo *repository.Repository, manager *jwt.Manager, email email.Sender, cfg *config.Config, hasher utils.Hasher) *Service {
+func NewService(
+	repo *repository.Repository,
+	manager *jwt.Manager,
+	email email.Sender,
+	cfg *config.Config,
+	hasher utils.Hasher) *Service {
+
+	jwtService := NewJWTService(
+		repo.JWTPostgresRepository,
+		repo.UserPostgresRepository,
+		repo.JWTRedisRepository,
+		repo.UserRedisRepository,
+		manager,
+		email,
+		hasher,
+		cfg)
+
 	return &Service{
-		JWTService: NewJWTService(
-			repo.JWTPostgresRepository,
-			repo.UserPostgresRepository,
-			repo.JWTRedisRepository,
-			repo.UserRedisRepository,
-			manager,
-			email,
-			cfg),
+		JWTService: jwtService,
 		UserService: NewUserService(
 			repo.UserPostgresRepository,
 			repo.UserRedisRepository,
+			jwtService,
 			email,
 			hasher),
 	}

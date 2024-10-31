@@ -1,8 +1,8 @@
 package redis
 
 import (
+	"context"
 	"encoding/json"
-	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 	"jwt-auth-service/init/logger"
 	"jwt-auth-service/internal/entities"
@@ -17,7 +17,7 @@ func NewJWTRedis(client *redis.Client) *JWTRedis {
 	return &JWTRedis{client: client}
 }
 
-func (j *JWTRedis) SetSession(ctx *gin.Context, userId string, session *entities.Session) error {
+func (j *JWTRedis) SetSession(ctx context.Context, userId string, session *entities.Session) error {
 	var user = new(entities.User)
 
 	bytes, err := j.client.Get(ctx, userId).Bytes()

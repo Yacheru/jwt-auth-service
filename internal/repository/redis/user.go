@@ -1,8 +1,8 @@
 package redis
 
 import (
+	"context"
 	"encoding/json"
-	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 	"jwt-auth-service/init/logger"
 	"jwt-auth-service/internal/entities"
@@ -22,7 +22,7 @@ func NewUserRedis(client *redis.Client, ttl int) *UserRedis {
 	}
 }
 
-func (u *UserRedis) StoreNewUser(ctx *gin.Context, user *entities.User) error {
+func (u *UserRedis) StoreNewUser(ctx context.Context, user *entities.User) error {
 	byteUser, err := json.Marshal(user)
 	if err != nil {
 		logger.Error(err.Error(), constants.RedisCategory)
@@ -39,7 +39,7 @@ func (u *UserRedis) StoreNewUser(ctx *gin.Context, user *entities.User) error {
 	return nil
 }
 
-func (u *UserRedis) GetUserById(ctx *gin.Context, userId string) (*entities.User, error) {
+func (u *UserRedis) GetUserById(ctx context.Context, userId string) (*entities.User, error) {
 	var user = new(entities.User)
 
 	bytes, err := u.client.Get(ctx, userId).Bytes()

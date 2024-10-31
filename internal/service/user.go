@@ -1,28 +1,43 @@
 package service
 
 import (
-	"github.com/gin-gonic/gin"
+	"context"
+	"database/sql"
+	"errors"
 	"jwt-auth-service/internal/entities"
 	"jwt-auth-service/internal/repository"
+	"jwt-auth-service/pkg/constants"
 	"jwt-auth-service/pkg/email"
 	"jwt-auth-service/pkg/utils"
+	"strings"
 )
 
 type User struct {
-	authPostgres repository.UserPostgresRepository
+	userPostgres repository.UserPostgresRepository
 	userRedis    repository.UserRedisRepository
-	email        email.Sender
-	hasher       utils.Hasher
+
+	jwtService JWTService
+
+	email  email.Sender
+	hasher utils.Hasher
 }
 
-func NewUserService(authPostgres repository.UserPostgresRepository, userRedis repository.UserRedisRepository, email email.Sender, hasher utils.Hasher) *User {
-	return &User{authPostgres: authPostgres, userRedis: userRedis, email: email, hasher: hasher}
+func NewUserService(
+	userPostgres repository.UserPostgresRepository,
+	userRedis repository.UserRedisRepository,
+	jwtService JWTService,
+	email email.Sender,
+	hasher utils.Hasher) *User {
+	return &User{userPostgres: userPostgres, userRedis: userRedis, jwtService: jwtService, email: email, hasher: hasher}
 }
 
-func (a *User) StoreNewUser(ctx *gin.Context, user *entities.User) error {
+func (a *User) RegisterUser(ctx context.Context, user *entities.User) error {
 	user.Password = a.hasher.Hash(user.Password)
 
-	if err := a.authPostgres.StoreNewUser(ctx, user); err != nil {
+	if err := a.userPostgres.StoreNewUser(ctx, user); err != nil {
+		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
+			return constants.UserAlreadyExistsError
+		}
 		return err
 	}
 
@@ -35,4 +50,23 @@ func (a *User) StoreNewUser(ctx *gin.Context, user *entities.User) error {
 	}
 
 	return nil
+}
+
+func (a *User) LoginUser(ctx context.Context, u *entities.UserLogin) (*entities.Tokens, error) {
+	u.Password = a.hasher.Hash(u.Password)
+
+	id, err := a.userPostgres.GetUserID(ctx, u.Email, u.Password)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, constants.UserNotFoundError
+		}
+		return nil, err
+	}
+
+	tokens, err := a.jwtService.SetSession(ctx, u.IpAddress, id)
+	if err != nil {
+		return nil, err
+	}
+
+	return tokens, nil
 }

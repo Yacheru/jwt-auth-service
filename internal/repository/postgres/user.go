@@ -1,7 +1,7 @@
 package postgres
 
 import (
-	"github.com/gin-gonic/gin"
+	"context"
 	"github.com/jmoiron/sqlx"
 	"jwt-auth-service/init/logger"
 	"jwt-auth-service/internal/entities"
@@ -16,30 +16,45 @@ func NewUserPostgres(db *sqlx.DB) *UserPostgres {
 	return &UserPostgres{db: db}
 }
 
-func (a *UserPostgres) GetUserById(ctx *gin.Context, userId string) (*entities.User, error) {
+func (a *UserPostgres) GetUserByRefresh(ctx context.Context, refreshToken string) (*entities.User, error) {
 	var user = new(entities.User)
 
 	query := `
-		SELECT uuid, email, password, ip, refresh_token, expires_in 
-		FROM users 
-		WHERE uuid = $1
+		SELECT uuid, email, nickname, ip, password, refresh_token, expires_in 
+		FROM users
+		WHERE refresh_token = $1
 	`
-	err := a.db.GetContext(ctx.Request.Context(), user, query, userId)
+	err := a.db.GetContext(ctx, user, query, refreshToken)
 	if err != nil {
 		logger.Error(err.Error(), constants.PostgresCategory)
-
 		return nil, err
 	}
 
 	return user, nil
 }
 
-func (a *UserPostgres) StoreNewUser(ctx *gin.Context, u *entities.User) error {
-	query := `INSERT INTO users (uuid, email, ip, password) VALUES ($1, $2, $3, $4) RETURNING uuid`
-	_, err := a.db.ExecContext(ctx.Request.Context(), query, u.UserID, u.Email, u.IpAddr, u.Password)
+func (a *UserPostgres) GetUserID(ctx context.Context, email, password string) (string, error) {
+	var uuid string
+
+	query := `
+		SELECT uuid
+		FROM users 
+		WHERE email = $1 AND password = $2
+	`
+	err := a.db.GetContext(ctx, &uuid, query, email, password)
 	if err != nil {
 		logger.Error(err.Error(), constants.PostgresCategory)
+		return "", err
+	}
 
+	return uuid, nil
+}
+
+func (a *UserPostgres) StoreNewUser(ctx context.Context, u *entities.User) error {
+	query := `INSERT INTO users (uuid, email, ip, password, nickname) VALUES ($1, $2, $3, $4, $5) RETURNING uuid`
+	_, err := a.db.ExecContext(ctx, query, u.UserID, u.Email, u.IpAddr, u.Password, u.Nickname)
+	if err != nil {
+		logger.Error(err.Error(), constants.PostgresCategory)
 		return err
 	}
 

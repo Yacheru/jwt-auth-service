@@ -1,7 +1,8 @@
 package handlers
 
 import (
-	"encoding/base64"
+	"errors"
+	"jwt-auth-service/pkg/constants"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -10,10 +11,10 @@ import (
 	"jwt-auth-service/internal/entities"
 )
 
-// SignUp
+// Register
 // @Summary User SignUp
 // @Tags user-auth
-// @Description create user accoung
+// @Description register account
 // @Accept  json
 // @Produce  json
 // @Param input body entities.User true "sign up info"
@@ -21,8 +22,8 @@ import (
 // @Failure 400,404 {object} response
 // @Failure 500 {object} response
 // @Failure default {object} response
-// @Router /auth/sign-up [post]
-func (h *Handlers) SignUp(ctx *gin.Context) {
+// @Router /auth/register [post]
+func (h *Handlers) Register(ctx *gin.Context) {
 	var user = new(entities.User)
 	if err := ctx.ShouldBindJSON(user); err != nil {
 		NewErrorResponse(ctx, http.StatusBadRequest, "body is invalid")
@@ -32,43 +33,51 @@ func (h *Handlers) SignUp(ctx *gin.Context) {
 	user.IpAddr = ctx.ClientIP()
 	user.UserID = uuid.NewString()
 
-	err := h.s.StoreNewUser(ctx, user)
+	err := h.s.UserService.RegisterUser(ctx, user)
 	if err != nil {
+		if errors.Is(err, constants.UserAlreadyExistsError) {
+			NewErrorResponse(ctx, http.StatusConflict, "User already exists")
+			return
+		}
 		NewErrorResponse(ctx, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	NewSuccessResponse(ctx, http.StatusCreated, "sign-up success", user.UserID)
+	NewSuccessResponse(ctx, http.StatusCreated, "register success", user.UserID)
+	return
 }
 
-// SignIn
+// Login
 // @Summary User SignIn
 // @Tags user-auth
-// @Description sign-in user
+// @Description login user
 // @Accept  json
 // @Produce  json
-// @Param input body entities.UserSignIn true "sign in info"
+// @Param input body entities.UserLogin true "sign in info"
 // @Success 201 {object} response
 // @Failure 400,404 {object} response
 // @Failure 500 {object} response
 // @Failure default {object} response
-// @Router /auth/sign-in [post]
-func (h *Handlers) SignIn(ctx *gin.Context) {
-	var userSignIn = new(entities.UserSignIn)
-	if err := ctx.ShouldBindJSON(userSignIn); err != nil {
+// @Router /auth/login [post]
+func (h *Handlers) Login(ctx *gin.Context) {
+	var userLogin = new(entities.UserLogin)
+	if err := ctx.ShouldBindJSON(userLogin); err != nil {
 		NewErrorResponse(ctx, http.StatusBadRequest, "provide valid user id!")
 		return
 	}
 
-	userSignIn.IpAddress = ctx.ClientIP()
+	userLogin.IpAddress = ctx.ClientIP()
 
-	tokens, err := h.s.SetSession(ctx, userSignIn.IpAddress, userSignIn.UserID)
+	tokens, err := h.s.UserService.LoginUser(ctx.Request.Context(), userLogin)
 	if err != nil {
-		NewErrorResponse(ctx, http.StatusInternalServerError, "Failed to create session")
+		if errors.Is(err, constants.UserNotFoundError) {
+			NewErrorResponse(ctx, http.StatusUnauthorized, "user not found")
+			return
+		}
+		NewErrorResponse(ctx, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	tokens.RefreshToken = base64.StdEncoding.EncodeToString([]byte(tokens.RefreshToken))
-
-	NewSuccessResponse(ctx, http.StatusOK, "Your tokens", tokens)
+	NewSuccessResponse(ctx, http.StatusOK, "client tokens", tokens)
+	return
 }

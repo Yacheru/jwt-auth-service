@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"github.com/golang-jwt/jwt"
 	"golang.org/x/crypto/bcrypt"
-	"jwt-auth-service/init/logger"
-	"jwt-auth-service/pkg/constants"
 	"math/rand"
 	"time"
 )
@@ -74,8 +72,6 @@ func (m *Manager) CheckBcryptMatch(hashedToken, token string) error {
 func (m *Manager) GenerateRefreshBcrypt(refreshToken string) (string, error) {
 	b, err := bcrypt.GenerateFromPassword([]byte(refreshToken), bcrypt.MinCost)
 	if err != nil {
-		logger.Error(err.Error(), constants.JWTCategory)
-
 		return "", err
 	}
 

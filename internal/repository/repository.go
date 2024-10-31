@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"github.com/gin-gonic/gin"
+	"context"
 	"github.com/jmoiron/sqlx"
 	"github.com/redis/go-redis/v9"
 	"jwt-auth-service/init/config"
@@ -12,21 +12,22 @@ import (
 )
 
 type JWTPostgresRepository interface {
-	SetSession(ctx *gin.Context, userId string, session *entities.Session) error
+	SetSession(ctx context.Context, userId string, session *entities.Session) error
 }
 
 type UserPostgresRepository interface {
-	StoreNewUser(ctx *gin.Context, u *entities.User) error
-	GetUserById(ctx *gin.Context, userId string) (*entities.User, error)
+	StoreNewUser(ctx context.Context, u *entities.User) error
+	GetUserByRefresh(ctx context.Context, refreshToken string) (*entities.User, error)
+	GetUserID(ctx context.Context, email, password string) (string, error)
 }
 
 type UserRedisRepository interface {
-	StoreNewUser(ctx *gin.Context, u *entities.User) error
-	GetUserById(ctx *gin.Context, userId string) (*entities.User, error)
+	StoreNewUser(ctx context.Context, u *entities.User) error
+	GetUserById(ctx context.Context, userId string) (*entities.User, error)
 }
 
 type JWTRedisRepository interface {
-	SetSession(ctx *gin.Context, userId string, session *entities.Session) error
+	SetSession(ctx context.Context, userId string, session *entities.Session) error
 }
 
 type Repository struct {

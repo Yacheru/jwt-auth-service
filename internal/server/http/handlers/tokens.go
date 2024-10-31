@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/base64"
 	"errors"
 	"github.com/gin-gonic/gin"
 	"jwt-auth-service/internal/entities"
@@ -29,24 +28,16 @@ func (h *Handlers) RefreshTokens(ctx *gin.Context) {
 		return
 	}
 
-	byteToken, err := base64.StdEncoding.DecodeString(refreshToken.RefreshToken)
+	AccessToken, err := h.s.JWTService.RefreshTokens(ctx, refreshToken.RefreshToken, ctx.ClientIP())
 	if err != nil {
-		NewErrorResponse(ctx, http.StatusBadRequest, "Provide refresh token in base64")
-		return
-	}
-
-	tokens, err := h.s.JWTService.RefreshTokens(ctx, string(byteToken), ctx.Query("guid"), ctx.ClientIP())
-	if err != nil {
-		if errors.Is(err, constants.UserNotFoundError) {
+		if errors.Is(err, constants.RefreshTokenNotFoundError) {
 			NewErrorResponse(ctx, http.StatusBadRequest, err.Error())
 			return
 		}
-
 		NewErrorResponse(ctx, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	tokens.RefreshToken = base64.StdEncoding.EncodeToString([]byte(tokens.RefreshToken))
-
-	NewSuccessResponse(ctx, http.StatusOK, "new tokens", tokens)
+	NewSuccessResponse(ctx, http.StatusOK, "new tokens", AccessToken)
+	return
 }

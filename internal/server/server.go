@@ -9,6 +9,7 @@ import (
 	"jwt-auth-service/init/config"
 	"jwt-auth-service/init/logger"
 	"jwt-auth-service/internal/repository/postgres"
+	"jwt-auth-service/internal/server/http/middleware"
 	"jwt-auth-service/internal/server/http/routes"
 	"jwt-auth-service/pkg/constants"
 	"net/http"
@@ -67,6 +68,7 @@ func setupGin(cfg *config.Config) *gin.Engine {
 
 	engine := gin.New()
 
+	engine.Use(middleware.CORSMiddleware())
 	engine.Use(gin.Recovery())
 	engine.Use(gin.LoggerWithFormatter(logger.HTTPLogger))
 
